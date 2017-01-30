@@ -1,0 +1,34 @@
+array <string> WAVNAME[0];
+array <int> DIALOGUE_TYPE[0];
+array <int> DIALOGUE_NUMBER[0];
+array <int> EXPERIMENT_CODE[0];
+array <int> TRIAL_NUMBER[0];
+array <int> CODE_CONDITION_SEND[0];
+array <int> CODE_OVERLAP_SEND[0];
+array <int> CODE_BLOCK[0];
+array <int> CODE_ITEM[0];
+array <int> CODE_TEMPO[0];
+array <int> CODE_CONDITION[0];
+array <int> CODE_OVERLAP[0];
+array <int> GRAPHICAL_SETTINGS[0][2][2];
+
+int STIMULUS_LIST = parameter_manager.get_int("Stimulus List");
+string STIMULUS_LIST_FILENAME = "list" + string(STIMULUS_LIST) + ".txt";
+bool RANDOMISE_GRAPHIC_REPRESENTATION = parameter_manager.get_bool("Randomise Graphic Representation");
+
+rgb_color STIMULUS_BAR_COLOR= parameter_manager.get_color("Stimulus Bar Background");
+rgb_color READY_COLOR = parameter_manager.get_color("Stimulus Token Ready");
+rgb_color ACTIVE_COLOR = parameter_manager.get_color("Stimulus Token Active");
+rgb_color INACTIVE_COLOR= parameter_manager.get_color("Stimulus Token Complete");
+
+double STIMULUS_BAR_HEIGHT = parameter_manager.get_double("Stimulus Bar Height");
+double STIMULUS_BAR_WIDTH = parameter_manager.get_double("Stimulus Bar Width");
+double TOKEN_BAR_MARGIN = 10;
+string SOUND_DIR = "sounds/";
+
+int BASELINE_PICTURE_START_TRIGGER = parameter_manager.get_int("Baseline Start Trigger", 100);
+int BLANK_SCREEN_TRIGGER = parameter_manager.get_int("Blank Screen Trigger", 120);
+int TRIAL_END_TRIGGER = parameter_manager.get_int("Trial End Trigger", 255);
+
+int DIALOGUE_0_START_TRIGGER = parameter_manager.get_int("Dialogue 0 Start Trigger", 101);
+int DIALOGUE_1_START_TRIGGER = parameter_manager.get_int("Dialogue 1 Start Trigger", 102);

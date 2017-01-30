@@ -1,0 +1,306 @@
+# Description: Program reads and presents a set of .wav files and markers.
+# 2015 modified by Anne van Leeuwen 23-02-2015
+
+# ################################################################
+# Read in stimulus-related information
+# ################################################################
+
+sub
+	set_trigger_code(stimulus_event& event, int trigger)
+begin
+	event.set_port_code(trigger);
+	event.set_event_code(string(trigger));
+end;
+	
+sub 
+	create_box(rgb_color color, int left_x_percent, int right_x_percent, picture& result)
+begin
+	int reference_part_index = result.part_count();
+	double width = abs( double(right_x_percent - left_x_percent)/100 ) * STIMULUS_BAR_WIDTH;
+	double height = STIMULUS_BAR_HEIGHT;
+	int box_x = int( ((double(left_x_percent)/100) * STIMULUS_BAR_WIDTH) - STIMULUS_BAR_WIDTH/2 + width/2) ;
+	int box_y = 0;
+	box new_box = new box(height, width, color);
+	result.add_part(new_box, box_x, box_y);
+end;
+
+sub
+	picture create_visual_presentation_picture(rgb_color color_box_1, rgb_color color_box_2, array<int> coordinates[2][2])
+begin
+	picture result = new picture;
+	
+	box background = new box(STIMULUS_BAR_HEIGHT+(TOKEN_BAR_MARGIN*2), STIMULUS_BAR_WIDTH, STIMULUS_BAR_COLOR);
+	result.add_part(background,0,0);
+	
+	create_box(color_box_1, coordinates[1][1], coordinates[1][2], result);
+	create_box(color_box_2, coordinates[2][1], coordinates[2][2], result);
+	
+	return result;
+end;
+
+sub
+	bool all_sound_files_exist
+begin
+	loop int index = 1 until index > WAVNAME.count() begin
+		if(!file_exists(stimulus_directory + SOUND_DIR + WAVNAME[index])) then
+			term.print_line("Could not find the file: " + WAVNAME[index]);
+		end;
+		index = index+1;
+	end;
+	return true;
+end;
+
+sub
+   display( string message , int wait)
+begin
+   display_window.erase();
+   display_window.draw_text( message );
+	wait_interval(wait);
+end;
+
+sub
+	provide_feedback
+begin
+	ellipse_graphic selected_circle = circle1;
+	if(response_manager.last_response()==3) then
+		selected_circle = circle2;
+	elseif(response_manager.last_response()==4) then
+		selected_circle = circle3;
+	elseif(response_manager.last_response()==5) then
+		selected_circle = circle4;
+	elseif(response_manager.last_response()==6) then
+		selected_circle = circle5;
+	elseif(response_manager.last_response()==7) then
+		selected_circle = circle6;
+	elseif(response_manager.last_response()==8) then
+		selected_circle = circle7;
+	end;
+	
+	selected_circle.set_color(0,255,0,255);
+	selected_circle.redraw();
+	
+	trial_feedback_vraag.present();
+	
+	selected_circle.set_color(166, 166, 166,255);
+	selected_circle.redraw();
+end;
+
+sub
+	skip_header(input_file& file)
+begin
+	file.set_delimiter( '\n' );
+	file.get_line();
+	file.set_delimiter( '\t' );
+end;
+
+sub
+	int get_number_of_lines_in_file(string filename)
+begin
+	int number_of_lines = 0;
+	input_file file = new input_file;
+	
+	file.set_delimiter( '\n' );
+	file.open(filename);
+	file.get_line(); # skipping header
+	loop until file.end_of_file() begin
+		file.get_line();
+		if (!file.last_succeeded()) then
+			file.close();
+			exit("file reading failed, some error on line" + string(number_of_lines));
+		end;
+		number_of_lines = number_of_lines + 1;
+	end;
+	
+	file.close();
+	return number_of_lines;
+end;
+
+sub
+	parse_full_line(input_file& file, int index)
+begin
+	DIALOGUE_NUMBER.add(file.get_int());
+	WAVNAME.add(file.get_string());
+	EXPERIMENT_CODE.add(file.get_int());
+	DIALOGUE_TYPE.add(file.get_int());
+	TRIAL_NUMBER.add(file.get_int());
+	CODE_CONDITION_SEND.add(file.get_int());
+	CODE_OVERLAP_SEND.add(file.get_int());
+	CODE_BLOCK.add(file.get_int());
+	CODE_ITEM.add(file.get_int());
+	CODE_TEMPO.add(file.get_int());
+	CODE_CONDITION.add(file.get_int());
+	CODE_OVERLAP.add(file.get_int());
+	
+	array <int> coordinates[2][2];
+	coordinates[1][1] = file.get_int();
+	coordinates[1][2] = file.get_int();
+	coordinates[2][1] = file.get_int();
+	coordinates[2][2] = file.get_int();
+	
+	if( coordinates[1][1] > coordinates[1][2]
+		|| coordinates[2][1] > coordinates[2][2]) then
+		term.print_line(coordinates);
+		exit("Illegal graphic representation on stimulus-list line: " + string(index));
+		
+	end;
+	
+	GRAPHICAL_SETTINGS.add(coordinates);
+	
+end;
+
+sub
+	open_stimulus_data_file
+begin
+	string stimulus_file= stimulus_directory + STIMULUS_LIST_FILENAME;
+
+	term.print_line("Opening: " + stimulus_file + " ...");
+
+	int number_of_trials = get_number_of_lines_in_file(stimulus_file);
+	
+	term.print_line("Detected " + string(number_of_trials) + " lines ...");
+
+	input_file in = new input_file;
+	in.set_delimiter( '\t' );
+	in.open(stimulus_file);
+
+	term.print_line("Scanning them now ...");
+	
+	skip_header(in);
+	# Now read in the actual filenames and all timing info from the file
+	loop int index = 1 until index > number_of_trials begin 
+		parse_full_line(in, index); 
+		index = index + 1;
+	end;
+
+	in.close();
+
+	if (in.end_of_file()) then
+		term.print_line("Succes! Reached end of the file; closed file.")
+	else
+		term.print_line("FAIL! HORROR! Encountered an error; closed file.")
+	end;	
+end;
+
+sub
+	shuffle_graphic_settings
+begin
+	if (GRAPHICAL_SETTINGS.count() % 2 != 0) then
+		term.print(GRAPHICAL_SETTINGS.count());
+		term.print(GRAPHICAL_SETTINGS);
+		exit("Graphic settings did not form expected duplets! Check the count ("+ string(GRAPHICAL_SETTINGS.count()) + ")!");
+	end;
+	
+	int number_of_duplets = GRAPHICAL_SETTINGS.count()/2;
+	
+	loop int duplet_index = 1 until duplet_index ==  number_of_duplets begin
+		int source_duplet_index = duplet_index * 2 - 1;
+		int target_duplet = random(1,number_of_duplets);
+		int target_duplet_index = target_duplet * 2 - 1;
+		
+		array <int> temp[2][2][2];
+		temp[1] = GRAPHICAL_SETTINGS[target_duplet_index];
+		temp[2] = GRAPHICAL_SETTINGS[target_duplet_index+1];
+		
+		GRAPHICAL_SETTINGS[target_duplet_index] = GRAPHICAL_SETTINGS[source_duplet_index];
+		GRAPHICAL_SETTINGS[target_duplet_index+1] = GRAPHICAL_SETTINGS[source_duplet_index+1];
+		
+		GRAPHICAL_SETTINGS[source_duplet_index] = temp[1];
+		GRAPHICAL_SETTINGS[source_duplet_index+1] = temp[2];
+		
+		duplet_index = duplet_index +1;
+	end;
+end;
+
+sub
+	set_and_load_wav(wavefile& audio_item, int i_trial)
+begin
+		# Set the filename and load it
+		string f = WAVNAME[i_trial];
+		term.print_line(" setting next filename = " + f);
+
+		audio_item.set_filename( SOUND_DIR + f );  
+
+		term.print_line("will try loading file: "+ stimulus_directory + SOUND_DIR + f);
+		audio_item.load();
+		term.print_line("have loaded file: "+ audio_item.filename());
+		term.print_line("duration (ms): "+ string(audio_item.duration()));
+end;
+
+sub
+	do_dialogue_type_0(int i_trial)
+begin
+	picture graphic = create_visual_presentation_picture(READY_COLOR, READY_COLOR, GRAPHICAL_SETTINGS[i_trial]);
+	graphic_ready_event_0.set_stimulus(graphic);				# set the ready picture - start
+	set_trigger_code(graphic_ready_event_0,DIALOGUE_NUMBER[i_trial]);
+	
+	graphic = create_visual_presentation_picture(ACTIVE_COLOR, READY_COLOR, GRAPHICAL_SETTINGS[i_trial]);
+	graphic_active_event_0.set_stimulus(graphic);								# set picture first active dialogue - self-paced
+	set_trigger_code(graphic_active_event_0, CODE_TEMPO[i_trial]);
+	
+	set_and_load_wav(audio_item_0, i_trial);
+	set_trigger_code(audio_play_event_0, DIALOGUE_0_START_TRIGGER);
+	
+	audio_play_delayed_event_0.set_deltat(CODE_CONDITION_SEND[i_trial]);
+	set_trigger_code(audio_play_delayed_event_0, CODE_CONDITION[i_trial]);
+	
+	int audio_finish_time = audio_item_0.duration() - CODE_CONDITION_SEND[i_trial];
+	audio_finish_time = audio_finish_time + 100;
+	
+	audio_finish_event_0.set_deltat(audio_finish_time);
+	set_trigger_code(audio_finish_event_0, CODE_OVERLAP[i_trial]);
+	
+	graphic = create_visual_presentation_picture(INACTIVE_COLOR, READY_COLOR, GRAPHICAL_SETTINGS[i_trial]);
+	graphic_inactive_event_0.set_stimulus(graphic);								# set picture first active dialogue - self-paced
+	
+	set_trigger_code(graphic_inactive_delayed_event_0, CODE_BLOCK[i_trial]);
+	
+	dialogue_type_0_trial.present();
+	audio_item_0.unload();
+end;
+
+sub
+	do_dialogue_type_1(int i_trial)
+begin
+	picture graphic = create_visual_presentation_picture(INACTIVE_COLOR, ACTIVE_COLOR, GRAPHICAL_SETTINGS[i_trial]);
+	graphic_active_event_1.set_stimulus(graphic);								# set picture first active dialogue - self-paced
+	
+	set_and_load_wav(audio_item_1, i_trial);
+	set_trigger_code(audio_play_event_1, DIALOGUE_1_START_TRIGGER);
+	
+	audio_play_delayed_event_1.set_deltat(CODE_CONDITION_SEND[i_trial]);
+	set_trigger_code(audio_play_delayed_event_1, CODE_CONDITION[i_trial]);
+	
+	int audio_finish_time = audio_item_1.duration() - CODE_CONDITION_SEND[i_trial];
+	audio_finish_time = audio_finish_time + 100;
+	
+	audio_finish_event_1.set_deltat(audio_finish_time);
+	set_trigger_code(audio_finish_event_1, CODE_OVERLAP[i_trial]);
+	
+	graphic = create_visual_presentation_picture(INACTIVE_COLOR, INACTIVE_COLOR, GRAPHICAL_SETTINGS[i_trial]);
+	graphic_inactive_event_1.set_stimulus(graphic);								# set picture first active dialogue - self-paced
+	graphic_inactive_delayed_event_1.set_stimulus(graphic);	
+	set_trigger_code(graphic_inactive_delayed_event_1, CODE_BLOCK[i_trial]);
+	
+	dialogue_type_1_trial.present();
+	audio_item_1.unload();
+end;
+
+sub 
+	do_question
+begin
+	blank_event_dialogue_question.present();															
+	question_trial.present();
+	provide_feedback();
+	blank_trial.present();
+end;
+
+sub
+	int select_pause_figure_index(int i_trial)
+begin
+		int selected_pause_figure_index = i_trial % pauzes_figures.count();
+		if(selected_pause_figure_index == 0) then
+			selected_pause_figure_index = pauzes_figures.count()
+		end;
+		return selected_pause_figure_index;
+end;
+	
